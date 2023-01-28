@@ -11,7 +11,7 @@ const flash = require('connect-flash')
 const errorController = require('./controllers/error');
 const User = require('./models/user');
 
-const MONGODB_URI = 'mongodb+srv://bayzt123:qweqwe@cluster0.o2osslj.mongodb.net/shop?';
+const MONGODB_URI = 'mongodb+srv://<username>:<password>@cluster0.o2osslj.mongodb.net/shop?';
 const csrfProtection = csrf()
 
 const app = express();
