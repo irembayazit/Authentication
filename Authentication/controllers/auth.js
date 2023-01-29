@@ -7,7 +7,7 @@ const User = require('../models/user');
 
 const transporter = nodemailer.createTransport({
     service: 'gmail', auth: {
-        user: 'bayzt.irem@gmail.com', pass: 'bviekimugpovpfgz'
+        user: 'username@gmail.com', pass: 'app_password'
     }
 })
 
