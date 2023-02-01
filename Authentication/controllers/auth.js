@@ -2,7 +2,7 @@ const bcrypt = require('bcryptjs')
 const nodemailer = require('nodemailer')
 const endgridTransport = require('nodemailer-sendgrid-transport')
 const crypto = require('crypto')
-
+const {validationResult} = require('express-validator')
 const User = require('../models/user');
 
 const transporter = nodemailer.createTransport({
@@ -19,8 +19,14 @@ exports.getLogin = (req, res, next) => {
         message = null;
     }
     res.render('auth/login', {
-        path: '/login', pageTitle: 'Login', errorMessage: message
-
+        path: '/login',
+        pageTitle: 'Login',
+        errorMessage: message,
+        oldInput: {
+            email: '',
+            password: '',
+        },
+        validationErrors: []
     });
 };
 
@@ -32,18 +38,43 @@ exports.getSignup = (req, res, next) => {
         message = null;
     }
     res.render('auth/signup', {
-        path: '/signup', pageTitle: 'Signup', errorMessage: message
+        path: '/signup', pageTitle: 'Signup', errorMessage: message, oldInput: {
+            email: "", password: "", confirmPassword: ""
+        }, validationErrors: []
+
     });
 };
 
 exports.postLogin = (req, res, next) => {
     const email = req.body.email;
     const password = req.body.password;
+
+    const errors = validationResult(req)
+    if (!errors.isEmpty()) {
+        return res.status(422).render('auth/login', {
+            path: '/login',
+            pageTitle: 'Login',
+            errorMessage: errors.array()[0].msg,
+            oldInput: {
+                email: email,
+                password: password,
+            },
+            validationErrors: errors.array()
+        });
+    }
+
     User.findOne({email: email})
         .then((user) => {
             if (!user) {
-                req.flash('error', 'Invalid email or password.')
-                return res.redirect('/login')
+                return res.status(422).render('auth/login', {
+                    path: '/login', pageTitle: 'login',
+                    errorMessage: 'Invalid email or password',
+                    oldInput: {
+                        email: email,
+                        password: password,
+                    },
+                    validationErrors: []
+                });
             }
             bcrypt.compare(password, user.password)
                 .then((doMatch) => {
@@ -55,8 +86,15 @@ exports.postLogin = (req, res, next) => {
                             res.redirect('/');
                         });
                     }
-                    req.flash('error', 'Invalid email or password.')
-                    res.redirect('/login')
+                    return res.status(422).render('auth/login', {
+                        path: '/login', pageTitle: 'login',
+                        errorMessage: 'Invalid email or password',
+                        oldInput: {
+                            email: email,
+                            password: password,
+                        },
+                        validationErrors: []
+                    });
                 })
                 .catch(err => console.log(err))
         })
@@ -68,36 +106,38 @@ exports.postSignup = (req, res, next) => {
     const password = req.body.password;
     const confirmPassword = req.body.confirmPassword;
 
-    User.findOne({email: email})
-        .then(userDoc => {
-            if (userDoc) {
-                req.flash('error', 'E-Mail exists already, please pick a different one.');
-                return res.redirect('/signup')
-            }
-            return bcrypt.hash(password, 12)
-                .then(hashPassword => {
-                    const user = new User({
-                        email: email, password: hashPassword, cart: {items: []}
-                    })
-                    return user.save()
-                }).then(result => {
-                    res.redirect('/login')
-                    const mailOptions = {
-                        to: email, from: 'bayzt.irem@gmail.com', subject: 'Signup succeeded!', text: 'Signup succeeded!'
-                    };
+    const errors = validationResult(req)
+    if (!errors.isEmpty()) {
+        return res.status(422).render('auth/signup', {
+            path: '/signup', pageTitle: 'Signup', errorMessage: errors.array()[0].msg, oldInput: {
+                email: email, password: password, confirmPassword: confirmPassword
+            }, validationErrors: errors.array()
+        });
+    }
+    bcrypt.hash(password, 12)
+        .then(hashPassword => {
+            const user = new User({
+                email: email, password: hashPassword, cart: {items: []}
+            })
+            return user.save()
+        }).then(result => {
+        res.redirect('/login')
+        const mailOptions = {
+            to: email, from: 'username@gmail.com', subject: 'Signup succeeded!', text: 'Signup succeeded!'
+        };
 
-                    return transporter.sendMail(mailOptions, function (error, info) {
-                        if (error) {
-                            console.log('Email error: ', error);
-                        } else {
-                            console.log('Email sent: ' + info.response);
-                        }
-                    });
-                })
-                .catch(err => {
-                    console.log(err)
-                })
+        return transporter.sendMail(mailOptions, function (error, info) {
+            if (error) {
+                console.log('Email error: ', error);
+            } else {
+                console.log('Email sent: ' + info.response);
+            }
+        });
+    })
+        .catch(err => {
+            console.log(err)
         })
+
         .catch((err => console.log('signup err', err)))
 
 };
@@ -185,9 +225,7 @@ exports.postNewPassword = (req, res, next) => {
     let resetUser;
 
     User.findOne({
-        resetToken: passwordToken,
-        resetTokenExpiration: {$gt: Date.now()},
-        _id: userId
+        resetToken: passwordToken, resetTokenExpiration: {$gt: Date.now()}, _id: userId
     })
         .then(user => {
             resetUser = user;
