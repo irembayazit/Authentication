@@ -7,7 +7,7 @@ const User = require('../models/user');
 
 const transporter = nodemailer.createTransport({
     service: 'gmail', auth: {
-        user: 'username@gmail.com', pass: 'app_password'
+        user: 'emailgmail.com', pass: 'app_password'
     }
 })
 
@@ -98,7 +98,11 @@ exports.postLogin = (req, res, next) => {
                 })
                 .catch(err => console.log(err))
         })
-        .catch(err => console.log(err));
+        .catch(err => {
+            const error = new Error('Error')
+            error.httpStatusCode = 500;
+            return next(error)
+        });
 };
 
 exports.postSignup = (req, res, next) => {
@@ -123,7 +127,7 @@ exports.postSignup = (req, res, next) => {
         }).then(result => {
         res.redirect('/login')
         const mailOptions = {
-            to: email, from: 'username@gmail.com', subject: 'Signup succeeded!', text: 'Signup succeeded!'
+            to: email, from: 'bayzt.irem@gmail.com', subject: 'Signup succeeded!', text: 'Signup succeeded!'
         };
 
         return transporter.sendMail(mailOptions, function (error, info) {
@@ -135,11 +139,10 @@ exports.postSignup = (req, res, next) => {
         });
     })
         .catch(err => {
-            console.log(err)
-        })
-
-        .catch((err => console.log('signup err', err)))
-
+            const error = new Error('Error')
+            error.httpStatusCode = 500;
+            return next(error)
+        });
 };
 
 exports.postLogout = (req, res, next) => {
@@ -214,8 +217,10 @@ exports.getNewPassword = (req, res, next) => {
             });
         })
         .catch(err => {
-            console.log(err)
-        })
+            const error = new Error('Error')
+            error.httpStatusCode = 500;
+            return next(error)
+        });
 }
 
 exports.postNewPassword = (req, res, next) => {
@@ -241,6 +246,8 @@ exports.postNewPassword = (req, res, next) => {
             res.redirect('/login')
         })
         .catch(err => {
-            console.log(err)
-        })
+            const error = new Error('Error')
+            error.httpStatusCode = 500;
+            return next(error)
+        });
 }
